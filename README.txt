@@ -1,7 +1,8 @@
 TODO:
 1. handle inf, denor etc... done
-2. random test case
+2. random test case... done
 3. double precision.
+4. internal checker
 
 
 Points:
