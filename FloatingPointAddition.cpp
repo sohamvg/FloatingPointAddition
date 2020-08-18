@@ -14,21 +14,89 @@ using namespace std;
 
 #define DEBUG 0
 
-int main() {
-    ifstream infile("inp.txt");
+enum NumberType { Zero, Normal, Denormal, Inf, NaN };
+
+float bin_to_float(ulong x) {
+    union {
+        ulong  x;
+        float  f;
+    } num;
+    num.x = x;
+    return num.f;
+}
+
+ulong float_to_bin(float f) {
+    union {
+        ulong  x;
+        float  f;
+    } num;
+    num.f = f;
+    return num.x;
+}
+
+NumberType get_num_type(bitset<EXPONENT_BIT> num_exponent, bitset<FRACTION_BIT> num_fraction) {
+    NumberType num_type;
+    if (num_exponent.to_ulong() == 0) {
+        if (num_fraction.to_ulong() == 0) {
+            // number is zero
+            num_type = Zero;
+        }
+        else {
+            // number is denormal
+            num_type = Denormal;
+        }
+    }
+    else if (num_exponent.to_ulong() == 255) {
+        if (num_fraction.to_ulong() == 0) {
+            // number is +inf or -inf
+            num_type = Inf;
+        }
+        else {
+            // NaN
+            num_type = NaN;
+        }
+    }
+    else {
+        // Normalized number
+        num_type = Normal;
+    }
+
+    return num_type;
+}
+
+int main(int argc, char *argv[]) {
+    if (argc != 2) {
+        std::cout << "Enter all arguments" << endl;
+        exit(EXIT_SUCCESS);
+    }
+
+    ifstream infile(argv[1]);
     string num1, num2;
+    int instruction_count = 1;
 
     while (infile >> num1 >> num2)
     {
         std::cout << "------------------------------------" << endl;
+        cout << instruction_count++ << endl;
+        cout << "Number 1: " << num1 << ", Number 2: " << num2 << endl;
 
         bitset<SIGN_BIT> num1_sign(num1, 0, SIGN_BIT);
         bitset<EXPONENT_BIT> num1_exponent(num1, SIGN_BIT, EXPONENT_BIT);
         bitset<FRACTION_BIT> num1_fraction(num1, SIGN_BIT + EXPONENT_BIT, FRACTION_BIT);
+        bitset<SIGN_BIT+EXPONENT_BIT+FRACTION_BIT> num1_bitset(num1, 0, SIGN_BIT+EXPONENT_BIT+FRACTION_BIT);
 
         bitset<SIGN_BIT> num2_sign(num2, 0, SIGN_BIT);
         bitset<EXPONENT_BIT> num2_exponent(num2, SIGN_BIT, EXPONENT_BIT);
         bitset<FRACTION_BIT> num2_fraction(num2, SIGN_BIT + EXPONENT_BIT, FRACTION_BIT);
+        bitset<SIGN_BIT+EXPONENT_BIT+FRACTION_BIT> num2_bitset(num2, 0, SIGN_BIT+EXPONENT_BIT+FRACTION_BIT);
+
+        float resf = bin_to_float(num1_bitset.to_ulong()) + bin_to_float(num2_bitset.to_ulong());
+        bitset<SIGN_BIT+EXPONENT_BIT+FRACTION_BIT> resb(float_to_bin(resf));
+        cout << bin_to_float(num1_bitset.to_ulong()) << endl;
+        cout << bin_to_float(num2_bitset.to_ulong()) << endl;
+        cout << "Result computed by CPP = " << resf << "  " << resb.to_string() << endl;
+
+        bool opposite_signs = num1_sign.to_ulong() != num2_sign.to_ulong() ? true : false;
 
         /*
             significand =
@@ -36,11 +104,9 @@ int main() {
                  1          23              1           1
         */
 
-        // First 1 bit for characterstic & last 2 bits are guard bit and round bit
-        bitset<1+FRACTION_BIT+GUARD_BIT+ROUND_BIT> num1_significand("1" + num1_fraction.to_string() + "00");
-        bitset<1+FRACTION_BIT+GUARD_BIT+ROUND_BIT> num2_significand("1" + num2_fraction.to_string() + "00");
+        bitset<1+FRACTION_BIT+GUARD_BIT+ROUND_BIT> num1_significand;
+        bitset<1+FRACTION_BIT+GUARD_BIT+ROUND_BIT> num2_significand;
 
-        bool opposite_signs = num1_sign.to_ulong() != num2_sign.to_ulong() ? true : false;
 
         #if DEBUG
             cout << num1_sign << " " << num1_exponent  << " " << num1_fraction << " " << num1_significand << endl;
@@ -50,10 +116,79 @@ int main() {
             cout << num2_sign.to_ulong() << " " << num2_exponent.to_ulong() << " " << num2_fraction.to_ulong() << endl;
         #endif
 
-
         bitset<SIGN_BIT> result_sign;
         bitset<2+FRACTION_BIT+GUARD_BIT+ROUND_BIT> result_significand; // One exta bit for carry
         long result_exponent;
+
+        // number types
+        NumberType num1_type = get_num_type(num1_exponent, num1_fraction);
+        NumberType num2_type = get_num_type(num2_exponent, num2_fraction);
+        cout << " Num type " << num1_type << " " << num2_type << endl;
+
+        if (num1_type == NaN || num2_type == NaN) {
+            cout << "NaN" << endl;
+            continue;
+        }
+        else if (num1_type == Inf || num2_type == Inf) {
+            if (opposite_signs && num1_type == Inf && num2_type == Inf) {
+                cout << "NaN" << endl;
+            }
+            else {
+                if (num1_sign.to_ulong() == 1) {
+                    cout << "-inf" << endl;
+                }
+                else {
+                    cout << "inf" << endl;
+                }
+            }
+            continue;
+        }
+        else if (num1_type == Zero && num2_type != Zero) {
+            cout << "zero input" << endl;
+            string result = num2_sign.to_string() + num2_exponent.to_string() + num2_fraction.to_string();
+
+            std::cout << "Result = " << result << endl;
+            continue;
+        }
+        else if (num1_type != Zero && num2_type == Zero) {
+            cout << "zero input" << endl;
+            string result = num1_sign.to_string() + num1_exponent.to_string() + num1_fraction.to_string();
+
+            std::cout << "Result = " << result << endl;
+            continue;
+        }
+        else if (num1_type == Zero && num2_type == Zero) {
+            cout << "zero input" << endl;
+            string result = num1_sign.to_string() + num1_exponent.to_string() + num1_fraction.to_string();
+
+            std::cout << "Result = " << result << endl;
+            continue;
+        }
+        else if (num1_type == Denormal && num2_type == Denormal) {
+            cout << "Num 1 & 2 are denormal" << endl;
+            num1_exponent = bitset<EXPONENT_BIT>(1); // Actual exponent is -126
+            num2_exponent = bitset<EXPONENT_BIT>(1); // Actual exponent is -126
+            num1_significand = bitset<1+FRACTION_BIT+GUARD_BIT+ROUND_BIT>("0" + num1_fraction.to_string() + "00");
+            num2_significand = bitset<1+FRACTION_BIT+GUARD_BIT+ROUND_BIT>("0" + num2_fraction.to_string() + "00");
+        }
+        else if (num1_type == Denormal && num2_type == Normal) {
+            cout << "Num 1 is denormal" << endl;
+            num1_exponent = bitset<EXPONENT_BIT>(1); // Actual exponent is -126
+            num1_significand = bitset<1+FRACTION_BIT+GUARD_BIT+ROUND_BIT>("0" + num1_fraction.to_string() + "00");
+            num2_significand = bitset<1+FRACTION_BIT+GUARD_BIT+ROUND_BIT>("1" + num2_fraction.to_string() + "00");
+        }
+        else if (num1_type == Normal && num2_type == Denormal) {
+            cout << "Num 2 is denormal" << endl;
+            num2_exponent = bitset<EXPONENT_BIT>(1); // Actual exponent is -126
+            num1_significand = bitset<1+FRACTION_BIT+GUARD_BIT+ROUND_BIT>("1" + num1_fraction.to_string() + "00");
+            num2_significand = bitset<1+FRACTION_BIT+GUARD_BIT+ROUND_BIT>("0" + num2_fraction.to_string() + "00");
+        }
+        else
+        { // Both num types are normal
+            num1_significand = bitset<1+FRACTION_BIT+GUARD_BIT+ROUND_BIT>("1" + num1_fraction.to_string() + "00");
+            num2_significand = bitset<1+FRACTION_BIT+GUARD_BIT+ROUND_BIT>("1" + num2_fraction.to_string() + "00");
+        }
+        
 
         // 1. Compare exponents
         int clock_cycles = 1;
@@ -190,6 +325,7 @@ int main() {
             }
 
             if (round_up) {
+                std::cout << "Rounding up..." << endl;
                 sticky = 0;
                 result_significand[ROUND_BIT-1] = 0;
                 result_significand[GUARD_BIT+ROUND_BIT-1] = 0;
@@ -213,6 +349,10 @@ int main() {
                 }
             }
 
+            #if DEBUG
+                std::cout << "Still normalized = " << still_normalized << endl; 
+            #endif
+
         } while (!still_normalized);
 
         if (underflow) {
@@ -231,7 +371,6 @@ int main() {
 
             string result_fraction = result_significand.to_string().erase(FRACTION_BIT+GUARD_BIT+ROUND_BIT, GUARD_BIT+ROUND_BIT).erase(0,2);
             string result = result_sign.to_string() + bitset<EXPONENT_BIT>(result_exponent).to_string() + result_fraction;
-
             std::cout << "Result = " << result << endl;
         }
         std::cout << "Clock cycles = " << clock_cycles << endl;
