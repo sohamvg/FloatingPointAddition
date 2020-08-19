@@ -13,8 +13,8 @@ using namespace std;
 #define FRACTION_BIT 23
 #define MAX_FRACTION 8388607
 
-#define RANDOM_FRACTIONS 100
-#define RANDOM_EXPONENTS 20
+#define RANDOM_FRACTIONS 20
+#define RANDOM_EXPONENTS 5
 
 int main()
 {
