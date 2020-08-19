@@ -13,14 +13,16 @@ using namespace std;
 #define FRACTION_BIT 23
 #define MAX_FRACTION 8388607
 
-#define TESTS 100
-#define EXPONENT_TESTS 20
+#define RANDOM_FRACTIONS 100
+#define RANDOM_EXPONENTS 20
 
 int main()
 {
-    vector<int> exponents = {0, 1, 9, 10, 99, 100, 101, 126, 127, 128, 254, 255};
+    // Total test cases generated = RANDOM_FRACTIONS * (RANDOM_EXPONENTS + #custom exponents) * (RANDOM_EXPONENTS + #custom exponents) * 2 + #custom test cases.
 
-    for (int i = 0; i < EXPONENT_TESTS; i++)
+    vector<int> exponents = {0, 1, 9, 10, 99, 100, 101, 126, 127, 128, 254, 255}; // custom exponents
+
+    for (int i = 0; i < RANDOM_EXPONENTS; i++)
     {
         int num = rand() % (255 + 1);
         if (std::find(exponents.begin(), exponents.end(), num) == exponents.end()) {
@@ -32,7 +34,7 @@ int main()
     inputfile.open("inp_large.txt");
     int count = 0;
     
-    for (int i = 0; i < TESTS; i++)
+    for (int i = 0; i < RANDOM_FRACTIONS; i++)
     {
         int fraction1 = rand() % (MAX_FRACTION + 1);
         int fraction2 = rand() % (MAX_FRACTION + 1);
@@ -61,11 +63,12 @@ int main()
         }
     }
 
+    // Custom testcases
+    string fraction1 = "01010101010101010101010";
+    string fraction2 = "01010101010101010101011";
+    
     for (int exp1 = 0; exp1 < exponents.size(); exp1++)
     {
-        string fraction1 = "01010101010101010101010";
-        string fraction2 = "01010101010101010101011";
-
         for (int exp2 = 0; exp2 < exponents.size(); exp2++)
         {
             int exponent1 = exponents[exp1];
